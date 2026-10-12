@@ -72,5 +72,27 @@
 
 ## Task E (бонус)
 
-- Варіант: <E1 HTTP-сервер / E2 отруєний опис / E3 Cursor>
-- <команди, виводи, спостереження — див. walkthrough, Task E>
+- Варіант: **E1 — сервер LeadDesk по HTTP із захистом Host/Origin.**
+- Код: фабрику винесено в `mcp/leaddesk-server/src/leaddesk.mjs` (`export const factory`); її
+  використовують обидва транспорти — `src/server.mjs` (stdio, `serveStdio(factory)`) і `src/http.mjs`
+  (`toNodeHandler(createMcpHandler(factory))`, гварди `localhostHostValidation()` і
+  `localhostOriginValidation()` викликано вручну перед обробником, `listen(3333, "127.0.0.1")`).
+  Після рефакторингу `tools/list` stdio-версії через Inspector побайтно збігся з `docs/mcp/tools-list.json`.
+- Залежність: `"@modelcontextprotocol/node": "2.1.0"` (точна версія, дозволений для E1 виняток) у
+  `mcp/leaddesk-server/package.json`; `@modelcontextprotocol/sdk` у lock-файлі немає.
+- Сервер слухає лише loopback: `netstat` → `TCP 127.0.0.1:3333 0.0.0.0:0 LISTENING`.
+- Чотири `curl` (Git Bash, тіло — `body.json` з повними ключами `io.modelcontextprotocol/…` у `_meta`,
+  у репозиторій не комічено):
+
+  | # | Запит | Відповідь |
+  |---|---|---|
+  | 1 | звичайний, `MCP-Protocol-Version: 2026-07-28` | **HTTP 200**, `result.tools`: `leaddesk_find_leads` (`readOnlyHint: true`), `leaddesk_set_lead_status` (`readOnlyHint: false`) |
+  | 2 | `-H "Host: evil.example"` | **HTTP 403**, `{"code":-32000,"message":"Invalid Host: evil.example"}` |
+  | 3 | `-H "Origin: https://evil.example"` | **HTTP 403**, `{"code":-32000,"message":"Invalid Origin: evil.example"}` |
+  | 4 | без заголовка `MCP-Protocol-Version` | **HTTP 400**, `{"code":-32020,"message":"Bad Request: the request headers and body disagree: the body envelope names protocol version 2026-07-28 but the required MCP-Protocol-Version header is absent"}` |
+
+- Спостереження: гварди відповідають 403 самі (тому `if (!checkHost(req, res)) return;`), і стоять до
+  MCP-обробника — підроблений `Host` не доходить до інструментів узагалі. Це захист від DNS rebinding:
+  сторінка в браузері не може видати себе за `localhost` і викликати `leaddesk_set_lead_status`.
+  Захист `Host`/`Origin` — не автентифікація: будь-який локальний процес на цій машині однаково
+  дістанеться сервера, тому слухаємо лише `127.0.0.1` і токена в цьому варіанті немає.

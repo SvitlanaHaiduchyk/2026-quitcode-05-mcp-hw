@@ -21,6 +21,17 @@ Node.js ≥ 22.19. Git Bash, з кореня репозиторію:
 node mcp/leaddesk-server/src/server.mjs   # чекає клієнта на stdin; Ctrl+C — зупинка
 ```
 
+Код: фабрика сервера — `src/leaddesk.mjs`; stdio — `src/server.mjs`.
+
+### HTTP (Task E1)
+
+```bash
+node mcp/leaddesk-server/src/http.mjs     # http://127.0.0.1:3333/mcp, лише loopback
+```
+
+Перед MCP-обробником стоять гварди `Host` і `Origin` (`@modelcontextprotocol/node`): підроблений
+`Host` чи `Origin` → 403. Автентифікації немає — не відкривайте порт назовні.
+
 ## Перевірка Inspector'ом
 
 ```bash
